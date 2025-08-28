@@ -1,0 +1,104 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تطبيق جدتي — كل المقاطع</title>
+<style>
+  body{font-family:system-ui,"Noto Kufi Arabic","Tajawal",Arial; background:#f9fafb; margin:0; color:#111;}
+  header{padding:16px; background:#fff; border-bottom:1px solid #eee; position:sticky;top:0;z-index:10}
+  h1{margin:0;font-size:28px}
+  .container{max-width:900px;margin:0 auto;padding:12px}
+  .grid{display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:600px){.grid{grid-template-columns:1fr 1fr}}
+  .btn-tile{display:flex;gap:12px;align-items:center;padding:16px;background:#fff;border:1px solid #eee;
+            border-radius:16px;box-shadow:0 4px 12px #0000000a;cursor:pointer;}
+  .btn-tile:active{transform:scale(.99)}
+  .thumb{width:96px;height:72px;border-radius:12px;object-fit:cover;background:#ddd;}
+  .title{font-weight:700;font-size:24px;} /* كبرنا الخط */
+  .hint{color:#666;font-size:14px;margin-top:4px;}
+  .modal{position:fixed;inset:0;background:#000c;display:none;align-items:center;justify-content:center;z-index:20}
+  .modal.open{display:flex}
+  .box{width:min(900px,96vw);background:#000;border-radius:12px;overflow:hidden}
+  .box header{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;color:#fff;background:#000}
+  iframe{width:100%;height:min(70vh,75dvh);display:block}
+  .x{background:#ffffff22;color:#fff;border:none;padding:8px 12px;border-radius:999px}
+  .controls{display:flex;gap:10px;justify-content:center;padding:10px;background:#111}
+  .controls button{font-size:20px;padding:12px 20px;border-radius:10px;border:none;cursor:pointer}
+  .repeat{background:#2ecc71;color:#fff}
+  .next{background:#3498db;color:#fff}
+</style>
+</head>
+<body>
+<header class="container"><h1>📖 تطبيق جدتي</h1></header>
+<main class="container">
+  <div id="list" class="grid"></div>
+</main>
+
+<div id="modal" class="modal" role="dialog" aria-modal="true">
+  <div class="box">
+    <header><span id="mtitle"></span><button class="x" id="mclose">✕</button></header>
+    <div id="mbody"></div>
+    <div class="controls">
+      <button class="repeat" id="repeatBtn">🔁 تكرار</button>
+      <button class="next" id="nextBtn">⏭ التالي</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const LINKS = ['https://youtu.be/AmWgbvwoBSQ', 'https://youtu.be/AsOvgIPZLdg', 'https://youtu.be/lpRVBaXqLNk', 'https://youtu.be/-Aa9lnQN6KI', 'https://youtu.be/5VpT7JsEs0Y', 'https://youtu.be/sBQHGwiBhfQ', 'https://youtu.be/9UFpyJg3oaM', 'https://youtu.be/Y_vqCIThIuc', 'https://youtu.be/FXoCnC0fPwg', 'https://youtu.be/MD_vPSs9Euc', 'https://youtu.be/EgLr4WAVDu4', 'https://youtu.be/LnxhECLUA80', 'https://youtu.be/JG6QtAPMar8', 'https://youtu.be/LSgwApczDtY', 'https://youtu.be/lTd8Hb6GDhY', 'https://youtu.be/5X57o4TZb1E', 'https://youtu.be/dBYnfi6zUq0', 'https://youtu.be/-F99dhEw18k', 'https://youtu.be/tAWVbLSeO-w', 'https://youtu.be/WqfW1cJMrNw', 'https://youtu.be/mJZRhgd9bAc', 'https://youtu.be/1PruINUyVGo', 'https://youtu.be/g2pAUp_aiEE', 'https://youtu.be/VkkjHXRmXBw', 'https://youtu.be/cDvAhfxl7Yk', 'https://youtu.be/MnBgphMr4ig', 'https://youtu.be/9u5s22Jh6d0', 'https://youtu.be/MXrbm2CnVt4', 'https://youtu.be/ILAUWkfTz4M', 'https://youtu.be/eXfMH316SWk', 'https://youtu.be/RjWLbjmFXd4', 'https://youtu.be/leoqN4sW__4', 'https://youtu.be/bIq69nYLqT4', 'https://youtu.be/HaZ97gRKwrI', 'https://youtu.be/xYWWw2rIc2Y', 'https://youtu.be/m8_oOvfcQbk', 'https://youtu.be/akozUM8qKH0', 'https://youtu.be/CmDbSjP39Os', 'https://youtu.be/9eUaROfVOY0', 'https://youtu.be/SAQ6lYRRU3s', 'https://youtu.be/3QzZlUMMl_0', 'https://youtu.be/sSs41T1RM7U', 'https://youtu.be/pxfZX86W8m4', 'https://youtu.be/kWzHILZ6goE', 'https://youtu.be/Pv4MTGStbQU', 'https://youtu.be/yxok0QFPSE0', 'https://youtu.be/3JqrZ1Aomcg', 'https://youtu.be/LeIaXnUJId4', 'https://www.youtube.com/watch?v=MNc0VFDZFFM'];
+  let currentIndex = -1;
+  let repeatMode = false;
+
+  function ytId(u){try{const x=new URL(u);if(x.hostname.includes('youtu.be')) return x.pathname.slice(1);
+    if(x.hostname.includes('youtube.com')){const v=x.searchParams.get('v');if(v) return v;
+    const p=x.pathname.split('/');const i=p.indexOf('shorts');if(i>=0&&p[i+1]) return p[i+1];}}catch{}return null;}
+  function thumb(u){const id=ytId(u);return id?'https://i.ytimg.com/vi/'+id+'/hqdefault.jpg':'';}
+
+  async function getTitle(url){
+    try{const o=await fetch('https://www.youtube.com/oembed?url='+encodeURIComponent(url)+'&format=json');
+      if(!o.ok) throw 0; const j=await o.json(); return j.title||url;}catch{return url;}
+  }
+
+  async function render(){
+    const list=document.getElementById('list'); list.innerHTML='';
+    for(const [i,url] of LINKS.entries()){
+      const title = await getTitle(url);
+      const btn=document.createElement('button');
+      btn.className='btn-tile';
+      btn.innerHTML=`<img class="thumb" src="${thumb(url)}"><div><div class="title">${title}</div><div class="hint">فيديو يوتيوب</div></div>`;
+      btn.onclick=()=>openItem(i,title);
+      list.appendChild(btn);
+    }
+  }
+
+  function openItem(index,title){
+    currentIndex=index;
+    const m=document.getElementById('modal'); const b=document.getElementById('mbody'); const t=document.getElementById('mtitle');
+    t.textContent=title||''; b.innerHTML='';
+    const url=LINKS[index]; const id=ytId(url);
+    const f=document.createElement('iframe');
+    f.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&modestbranding=1';
+    f.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    f.allowFullscreen=true; b.appendChild(f);
+    m.classList.add('open');
+  }
+  function closeModal(){document.getElementById('modal').classList.remove('open');document.getElementById('mbody').innerHTML='';}
+  document.getElementById('mclose').onclick=closeModal;
+  document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+
+  document.getElementById('repeatBtn').onclick=()=>{
+    repeatMode=!repeatMode;
+    alert(repeatMode?'وضع التكرار مفعل':'تم إيقاف التكرار');
+  };
+  document.getElementById('nextBtn').onclick=()=>{
+    if(currentIndex<LINKS.length-1){openItem(currentIndex+1,'');}
+    else{alert('لا يوجد مقطع بعده');}
+  };
+
+  render();
+</script>
+</body>
+</html>
